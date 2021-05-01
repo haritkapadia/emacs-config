@@ -1,0 +1,74 @@
+\documentclass[fleqn, 11pt, letterpaper]{article}
+\usepackage[letterpaper, margin=1in]{geometry}
+\usepackage{amsfonts,amsmath,amssymb,amsthm,array,fancyhdr,enumitem,scrextend,csquotes,multicol,graphicx,harpoon,mathtools,longtable,gensymb}
+\setenumerate[0]{label=(\alph*)}
+\newcolumntype{C}{>{$} c <{$}}
+\newcolumntype{L}{>{$} l <{$}}
+\newcolumntype{R}{>{$} r <{$}}
+\setlength\tabcolsep{1pt}
+\renewcommand{\implies}{\Rightarrow}
+\renewcommand{\bar}{\overline}
+\renewcommand{\vec}{\overrightharp}
+\renewcommand{\Re}{\text{Re}}
+\renewcommand{\Im}{\text{Im}}
+\newcommand{\Qu}[2][\pagebreak]{#1\textbf{Q#2.}}
+\newcommand{\Neqv}{\not\equiv}
+\newcommand{\F}{\mathbb{F}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\U}{\mathcal{U}}
+\newcommand{\Cbrt}{\sqrt[3]}
+\newcommand{\Cis}{\mathrm{\hspace{1pt}cis\hspace{1pt}}}
+\newcommand{\Span}{\mathrm{span}}
+\newcommand{\Basis}{\mathrm{basis}}
+\newcommand{\Rank}{\mathrm{rank}}
+\newcommand{\Nullity}{\mathrm{nullity}}
+\newcommand{\Dim}{\mathrm{dim}}
+\newcommand{\Dfeq}{\stackrel{\mathrm{def}}{=}}
+\newcommand{\Vz}{\underline{0}}
+\renewcommand{\\'}{{}^\prime}
+\newcommand{\Vect}[1]{\begin{bmatrix}#1\end{bmatrix}}
+\newenvironment{Align}{\begin{quote}\\(\begin{aligned}}{\end{aligned}\\)\end{quote}}
+\newenvironment{Question}[1]{\begingroup\sffamily\Qu{#1}}{\normalfont\endgroup}
+\newcount\arrowcount
+\newcommand\arrows[1]{
+  \global\arrowcount#1
+  \ifnum\arrowcount>0
+  \begin{matrix}
+    \expandafter\nextarrow
+    \fi
+}
+\newcommand\nextarrow[1]{
+  \global\advance\arrowcount-1
+  \ifx\relax#1\relax\else \xrightarrow{#1}\fi
+  \ifnum\arrowcount=0
+  \end{matrix}
+  \else
+  \\\\
+  \expandafter\nextarrow
+  \fi
+}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.75em}
+\DeclarePairedDelimiter\Pb{(}{)}
+\DeclarePairedDelimiter\Bb{{[}}{{]}}
+\DeclarePairedDelimiter\CC{{[}}{{]}}
+\DeclarePairedDelimiter\CO{{[}}{{)}}
+\DeclarePairedDelimiter\OC{{(}}{{]}}
+\DeclarePairedDelimiter\OO{{(}}{{)}}
+
+\pagestyle{fancy}
+
+
+\lhead{${1:Math} ${2:NNN} `(cond ((member (format-time-string "%m") '("01" "02" "03" "04")) "Winter")
+  ((member (format-time-string "%m") '("05" "06" "07" "08")) "Spring")
+  ((member (format-time-string "%m") '("09" "10" "11" "12")) "Fall"))` `(format-time-string "%Y")`: ${3:Assignment} ${4:}}
+\rhead{Harit Kapadia\\\\${5:`(format-time-string "%B %e, %Y")`}}
+
+
+\begin{document}
+$0
+\end{document}

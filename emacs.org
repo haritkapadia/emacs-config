@@ -1,34 +1,11 @@
 #+TITLE: Emacs Literate Configuration
-#+AUTHOR: Your Name Here
 #+PROPERTY: header-args :tangle yes
+#+STARTUP: content
+
+* Useful links
+[[https://emacs.stackexchange.com/questions/13186/how-might-i-define-or-fake-a-mode-local-ex-command-with-evil]]
 
 * Configuration
-:PROPERTIES:
-:VISIBILITY: children
-:END:
-
-** Table of Contents :TOC_3_gh:
-- [[#configuration][Configuration]]
-  - [[#about-this-file][About this file]]
-  - [[#org-file-tweaks][Org File Tweaks]]
-    - [[#automatically-tangle][Automatically Tangle]]
-    - [[#visibility-settings][Visibility Settings]]
-    - [[#table-of-contents][Table of Contents]]
-  - [[#personal-information][Personal Information]]
-  - [[#emacs-initialization][Emacs Initialization]]
-    - [[#settings][Settings]]
-    - [[#package-management][Package Management]]
-  - [[#packages][Packages]]
-    - [[#evil][Evil]]
-    - [[#ivy][Ivy]]
-    - [[#counsel][Counsel]]
-    - [[#swiper][Swiper]]
-    - [[#magit][Magit]]
-    - [[#projectile][Projectile]]
-    - [[#org][Org]]
-    - [[#toc-org][Toc-org]]
-  - [[#post-initialization][Post Initialization]]
-
 ** About this file
 This is an Emacs literate configuration template. It contains the basic structure
 of a literate config along with some optimizations to ensure a fast load time.
@@ -53,23 +30,7 @@ Next we have a property defined on the [[Configuration][Configuration]] heading 
 that tells org to show it's direct children on startup. This way a clean outline of all
 sub headings under Configuration is shown each time this file is opened in org-mode.
 
-*** Table of Contents
-Finally, there is a [[Table of Contents][Table of Contents]] heading that includes the tag: =:TOC_3_gh:=. This
-tells an org-mode package =toc-org= to generate a table of contents under this heading
-that has a max depth of 3 and is created using Github-style hrefs. This table of contents
-is updated everytime the file is saved and makes for a functional table of contents that
-works property directly on github.
-
-** Personal Information
-Let's set some variables with basic user information.
-
-#+BEGIN_SRC emacs-lisp
-(setq user-full-name "Your Name Here"
-      user-mail-address "user@email.com")
-#+END_SRC
-
 ** Emacs Initialization
-
 *** Settings
 We're going to increase the gc-cons-threshold to a very high number to decrease the load and compile time.
 We'll lower this value significantly after initialization has completed. We don't want to keep this value
@@ -89,7 +50,6 @@ if you would like to see any and all byte compiler warnings.
 #+END_SRC
 
 *** Package Management
-
 **** Package Settings
 We're going to set the =load-path= ourselves and avoid calling =(package-initilize)= (for
 performance reasons) so we need to set =package--init-file-ensured= to true to tell =package.el=
@@ -114,7 +74,8 @@ initialization significantly as many packages are only loaded later when they ar
 
 #+BEGIN_SRC emacs-lisp
   (setq use-package-always-defer t
-        use-package-verbose t)
+        use-package-verbose t
+        use-package-hook-name-suffix nil)
 #+END_SRC
 
 **** Manually Set Load Path
@@ -144,60 +105,141 @@ Since the code is automatically compiled during runtime, if the configuration ha
 previously compiled manually then all of the package initialization will still take place at startup.
 
 #+BEGIN_SRC emacs-lisp
+  (setq personal-keybindings '())
+
   (eval-when-compile
     (require 'package)
-
-    (unless (assoc-default "melpa" package-archives)
-      (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/") t))
-    (unless (assoc-default "org" package-archives)
-      (add-to-list 'package-archives '("org" . "http://orgmode.org/elpa/") t))
+    (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
+    (add-to-list 'package-archives '("org" . "http://orgmode.org/elpa/") t)
 
     (package-initialize)
     (unless (package-installed-p 'use-package)
       (package-refresh-contents)
       (package-install 'use-package))
     (require 'use-package)
+    (require 'bind-key)
     (setq use-package-always-ensure t))
 #+END_SRC
 
-
-** Packages
-
-*** Evil
-Install, automatically load, and enable evil. It's like vim, but better!
+** Timezone
+Timezone is useful when exporting Org Mode to iCal format.
 
 #+BEGIN_SRC emacs-lisp
-(use-package evil
-  :demand t
-  :config
-  (evil-mode 1))
+  (setenv "TZ" "EDT")
+#+END_SRC
+
+** Packages
+*** Diminish
+#+BEGIN_SRC emacs-lisp
+  (use-package diminish
+    :demand t)
+#+END_SRC
+
+*** Which Key
+#+BEGIN_SRC emacs-lisp
+  (use-package which-key
+    :diminish which-key-mode
+    :demand t
+    :config
+    (which-key-mode))
+#+END_SRC
+
+*** Undo Tree
+#+BEGIN_SRC emacs-lisp
+  (use-package undo-tree
+    :diminish undo-tree-mode
+    :demand t
+    :config
+    (global-undo-tree-mode))
+#+END_SRC
+
+*** Evil
+#+BEGIN_SRC emacs-lisp
+  (use-package evil
+    :after undo-tree
+    :demand t
+    :init
+    (setq evil-undo-system 'undo-tree
+      evil-want-integration t
+      evil-want-keybinding nil
+      evil-move-beyond-eol t)
+    :config
+    (evil-mode 1)
+    (global-set-key (kbd "C-SPC") nil)
+    (evil-set-leader 'insert (kbd "C-SPC"))
+    (evil-set-leader 'normal (kbd "SPC")))
+#+END_SRC
+
+*** Evil Collection
+#+BEGIN_SRC emacs-lisp
+  (use-package evil-collection
+    :after evil
+    :demand t
+    :init
+    (evil-collection-init))
+#+END_SRC
+
+*** Evil Surround
+#+BEGIN_SRC emacs-lisp
+  (use-package evil-surround
+    :demand t
+    :after evil
+    :config
+    (global-evil-surround-mode 1))
+#+END_SRC
+
+*** Hydra
+#+BEGIN_SRC emacs-lisp
+  (use-package hydra)
 #+END_SRC
 
 *** Ivy
-Generic completion frontend that's just awesome! Let's install and enable it.
+Generic completion frontend.
 
 #+BEGIN_SRC emacs-lisp
-(use-package ivy
-  :demand t)
-#+END_SRC
+  (use-package ivy
+    :demand t
+    :diminish ivy-mode
+    :init
+    (setq ivy-use-virtual-buffers t
+          enable-recursive-minibuffers t
+          ivy-count-format "(%d/%d) ")
+    :config
+    (ivy-mode)
+    (setcdr (assq t ivy-format-functions-alist) #'ivy-format-function-line))
 
-*** Counsel
-Counsel allows us to utilize ivy by replacing many built-in and common functions
-with richer versions. Let's install it!
+  (use-package amx
+    :after ivy
+    :demand t
+    :init
+    (setq amx-backend 'auto
+          amx-save-file "~/.emacs.d/amx-items"
+          amx-history-length 50
+          amx-show-key-bindings t)
+    :config
+    (amx-mode 1))
 
-#+BEGIN_SRC emacs-lisp
-(use-package counsel-projectile)
-(use-package counsel
-  :demand t)
-#+END_SRC
+  (use-package swiper
+    :init
+    (evil-define-key nil evil-motion-state-map
+      "/" #'swiper-isearch
+      "?" #'swiper-isearch-backward))
 
-*** Swiper
-Swiper is an awesome searching utility with a quick preview. Let's install it and
-load it when =swiper= or =swiper-all= is called.
+  (use-package ivy-rich
+    :demand t
+    :config
+    (ivy-rich-mode 1))
 
-#+BEGIN_SRC emacs-lisp
-(use-package swiper
-  :commands (swiper swiper-all))
+  (use-package counsel
+    :demand t
+    :bind
+    (("<f1> f" . counsel-describe-function)
+     ("<f1> v" . counsel-describe-variable)
+     ("<f1> o" . counsel-describe-symbol)
+     ("<leader> f f" . #'counsel-find-file)
+     ("M-x" . counsel-M-x)))
+
+  (use-package counsel-projectile)
 #+END_SRC
 
 *** Magit
@@ -205,17 +247,27 @@ The magical git client. Let's load magit only when one of the several entry pont
 functions we invoke regularly outside of magit is called.
 
 #+BEGIN_SRC emacs-lisp
-(use-package magit
-  :commands (magit-status magit-blame magit-log-buffer-file magit-log-all))
+  (use-package magit
+    :commands (magit-status magit-blame magit-log-buffer-file magit-log-all))
+
+  (defun git-commit-config ()
+    (setq fill-column 72)
+    (display-fill-column-indicator-mode))
+  (add-hook 'git-commit-mode-hook #'git-commit-config)
 #+END_SRC
 
 *** Projectile
-Projectile is a quick and easy project management package that "just works". We're
-going to install it and make sure it's loaded immediately.
+Projectile is a quick and easy project management package that "just works".
 
 #+BEGIN_SRC emacs-lisp
-(use-package projectile
-  :demand t)
+  (use-package projectile
+    :demand t
+    :config
+    (projectile-mode +1)
+    (bind-keys :map projectile-mode-map
+               ("<leader> p" . projectile-command-map)
+               ("<leader> t T" . projectile-run-eshell)
+               ("<leader> t S" . projectile-run-term)))
 #+END_SRC
 
 *** Org
@@ -224,24 +276,335 @@ to manually remove the org directories from the load path, to ensure the version
 want is prioritized instead.
 
 #+BEGIN_SRC emacs-lisp
-(use-package org
-  :ensure org-plus-contrib
-  :pin org
-  :defer t)
+  (use-package org
+    :ensure org-plus-contrib
+    :pin org
+    :defer t
+    :init
+    (setq-default org-adapt-indentation nil))
 
-;; Ensure ELPA org is prioritized above built-in org.
-(require 'cl)
-(setq load-path (remove-if (lambda (x) (string-match-p "org$" x)) load-path))
+  (use-package org-evil)
+
+  ;; Ensure ELPA org is prioritized above built-in org.
+  (require 'cl)
+  (setq load-path (remove-if (lambda (x) (string-match-p "org$" x)) load-path))
 #+END_SRC
 
-*** Toc-org
-Let's install and load the =toc-org= package after org mode is loaded. This is the
-package that automatically generates an up to date table of contents for us.
+*** Persistent Scratch
+#+BEGIN_SRC emacs-lisp
+  (use-package persistent-scratch
+    :demand t
+    :config
+    (persistent-scratch-setup-default))
+#+END_SRC
+
+*** Tree Sitter
+#+BEGIN_SRC emacs-lisp
+  (use-package tree-sitter
+    :demand t
+    :diminish tree-sitter-mode)
+
+  (use-package tree-sitter-langs
+    :after sage-shell-mode
+    :demand t
+    :init
+    (mapc (lambda (el)
+            (add-hook (intern (concat (symbol-name (car el)) "-hook"))
+                      #'tree-sitter-mode))
+          tree-sitter-major-mode-language-alist)
+    (add-hook 'tree-sitter-after-on-hook #'tree-sitter-hl-mode))
+#+END_SRC
+*** Flycheck
+#+BEGIN_SRC emacs-lisp
+  (use-package flycheck
+    :init
+    (global-flycheck-mode))
+#+END_SRC
+
+*** Company with Company Box
+#+BEGIN_SRC emacs-lisp
+  (use-package company
+    :diminish company-mode
+    :demand t
+    :init
+    (add-hook 'after-init-hook #'global-company-mode)
+    :bind
+    (:map company-active-map
+      ("C-M-i" . counsel-company)))
+
+  (use-package company-box
+    :hook (prog-mode-hook . company-box-mode))
+#+END_SRC
+
+*** Yasnippet
+#+BEGIN_SRC emacs-lisp
+  (use-package yasnippet
+    :diminish yas-minor-mode
+    :commands (yas/expand-snippet)
+    :init
+    (add-hook 'yas-minor-mode-hook #'yas-reload-all)
+    (mapc (lambda (e) (add-hook e #'yas-minor-mode))
+          '(prog-mode-hook
+            latex-mode-hook
+            org-mode-hook))
+    (defun my/insert-yas-expand ()
+      "Replace text in Yasnippet template."
+      (let ((yas-indent-line 'fixed))
+        (yas/expand-snippet (buffer-string) (point-min) (point-max))))
+    (setq auto-insert 'other
+          auto-insert-dictionary "~/.emacs.d/templates/"
+          auto-insert-alist
+          (mapcar (lambda (ext)
+                    `((,(concat "\\." ext "\\'") .
+                       [,(concat "template." ext) my/insert-yas-expand])))
+                  '("tex" "el")))
+    :config
+    (add-to-list 'company-backends 'company-yasnippet))
+#+END_SRC
+
+** UI
+*** Startup and shutdown
+#+BEGIN_SRC emacs-lisp
+  (setq inhibit-startup-screen t
+        initial-scratch-message ""
+        initial-major-mode #'org-mode)
+  (add-hook 'kill-emacs-hook #'bookmark-save)
+#+END_SRC
+
+*** Backup management
+#+BEGIN_SRC emacs-lisp
+  (defvar --backup-directory (concat user-emacs-directory "backups"))
+  (if (not (file-exists-p --backup-directory))
+          (make-directory --backup-directory t))
+  (setq backup-directory-alist `(("." . ,--backup-directory)))
+  (setq make-backup-files t   ; backup of a file the first time it is saved.
+        backup-by-copying t   ; don't clobber symlinks
+        version-control t     ; version numbers for backup files
+        delete-old-versions t ; delete excess backup files silently
+        kept-old-versions 5   ; oldest versions to keep when a new numbered backup is made
+        kept-new-versions 5   ; newest versions to keep when a new numbered backup is made
+        auto-save-default nil ; auto-save every buffer that visits a file
+        delete-by-moving-to-trash t)
+#+END_SRC
+
+*** Toolbar, menubar, scrollbar
+#+BEGIN_SRC emacs-lisp
+  (when (fboundp 'tool-bar-mode)
+    (tool-bar-mode -1))
+  (when (fboundp 'menu-bar-mode)
+    (menu-bar-mode -1))
+  (when (fboundp 'scroll-bar-mode)
+    (scroll-bar-mode -1))
+#+END_SRC
+
+*** Smooth window management
+#+BEGIN_SRC emacs-lisp
+  (setq scroll-step 1
+	mouse-wheel-scroll-amount '(1 ((shift) . 1))
+	mouse-wheel-follow-mouse t
+	mouse-wheel-progressive-speed nil
+	frame-resize-pixelwise t)
+#+END_SRC
+*** Reduce noise
+#+BEGIN_SRC emacs-lisp
+  (blink-cursor-mode -1)
+  (setq ring-bell-function #'ignore)
+#+END_SRC
+*** Color and font
+#+BEGIN_SRC emacs-lisp
+  (use-package color-theme-sanityinc-tomorrow
+    :demand t
+    :config
+    (load-theme 'sanityinc-tomorrow-day t)
+    (set-face-attribute 'default nil :foreground "#000000"))
+#+END_SRC
+
+*** Show Whitespace
+#+BEGIN_SRC emacs-lisp
+  (defun my/trailing-whitespace ()
+    "Show trailing whitespace."
+    (interactive)
+    (setq show-trailing-whitespace t))
+
+  (defun my/no-trailing-whitespace ()
+    "Hide trailing whitespace."
+    (interactive)
+    (setq show-trailing-whitespace nil))
+#+END_SRC
+
+** Files and Programming
+*** UTF everywhere
+#+BEGIN_SRC emacs-lisp
+  (prefer-coding-system 'utf-8-unix)
+  (set-language-environment "UTF-8")
+  (setq load-prefer-newer t)
+#+END_SRC
+*** Terminals
+#+BEGIN_SRC emacs-lisp
+  (bind-keys ("<leader> t t" . eshell)
+             ("<leader> t s" . term))
+#+END_SRC
+
+*** Edit files
+#+BEGIN_SRC emacs-lisp
+  (defun my/find-init-org-file () (interactive) (find-file "~/.emacs.d/emacs.org"))
+  (evil-define-key nil evil-normal-state-map
+    (kbd "<leader> f F") #'find-alternate-file
+    (kbd "<leader> f r") #'find-file-read-only
+    (kbd "<leader> f q") #'read-only-mode
+    (kbd "<leader> f e") #'my/find-init-org-file)
+#+END_SRC
+
+*** Pairs
+#+BEGIN_SRC emacs-lisp
+  (electric-pair-mode)
+  (show-paren-mode)
+#+END_SRC
+
+*** Prog Mode
+#+BEGIN_SRC emacs-lisp
+  (add-hook 'prog-mode-hook #'my/trailing-whitespace)
+#+END_SRC
+*** LSP
+LSP requires language servers. Install the necessary ones from the [[https://emacs-lsp.github.io/lsp-mode/page/languages/][Emacs LSP
+page]]. While it may be tempting to install language servers for every available
+mode, keep in mind that this usually requires external installs (e.g. from NPM
+or Cargo).
 
 #+BEGIN_SRC emacs-lisp
-(use-package toc-org
-  :after org
-  :init (add-hook 'org-mode-hook #'toc-org-enable))
+  (use-package lsp-mode
+    :init
+    (setq lsp-keymap-prefix "<leader> o")
+    :hook ((lsp-mode-hook . lsp-enable-which-key-integration))
+    :commands lsp)
+
+  (use-package lsp-ui :commands lsp-ui-mode)
+  (use-package lsp-ivy :commands lsp-ivy-workspace-symbol)
+
+  (use-package dap-mode)
+#+END_SRC
+
+*** Text
+#+BEGIN_SRC emacs-lisp
+  (setq sentence-end-double-space nil)
+  (setq-default indent-tabs-mode nil
+		tab-width 4
+		c-basic-offset 4
+		cperl-indent-level 4
+		fill-column 80)
+#+END_SRC
+*** JSON, YAML, Markdown
+#+BEGIN_SRC emacs-lisp
+  (use-package json-mode)
+  (use-package yaml-mode)
+  (use-package markdown-mode)
+  (use-package edit-indirect :after markdown-mode)
+#+END_SRC
+*** Lisps
+See [[https://github.com/noctuid/lispyville]] for Lispyville key themes.
+
+#+BEGIN_SRC emacs-lisp
+  (use-package lispy
+    :init
+    (add-hook 'emacs-lisp-mode-hook #'lispy-mode)
+    (add-hook 'common-lisp-mode-hook #'lispy-mode)
+    (add-hook 'lisp-mode-hook #'lispy-mode)
+    (add-hook 'racket-mode-hook #'lispy-mode))
+
+  (use-package lispyville
+    :init
+    (add-hook 'lispy-mode-hook #'lispyville-mode)
+    :config
+    (lispyville-set-key-theme '(operators c-w text-objects atom-motions additional-motions slurp/barf-cp)))
+#+END_SRC
+
+**** Common Lisp
+ #+BEGIN_SRC emacs-lisp
+   (use-package slime
+     :commands
+     (slime)
+     :config
+     (setq inferior-lisp-program "sbcl")
+     (slime-setup '(slime-fancy slime-company)))
+
+   (use-package slime-company
+     :after (slime company))
+ #+END_SRC
+
+**** Racket
+ #+BEGIN_SRC emacs-lisp
+   (use-package racket-mode)
+ #+END_SRC
+
+*** Python
+#+BEGIN_SRC emacs-lisp
+  (use-package pipenv
+    :after python
+    :init
+    (setq pipenv-projectile-after-switch-function
+      #'pipenv-projectile-after-switch-extended))
+
+  (use-package pyvenv
+    :after python)
+
+  (use-package anaconda-mode
+    :init
+    (add-hook 'python-mode-hook #'anaconda-mode)
+    (add-hook 'python-mode-hook #'anaconda-eldoc-mode)
+    :config
+    (bind-keys :map anaconda-mode-map ("C-M-i" . nil)))
+
+  (use-package company-anaconda
+    :after (company anaconda-mode)
+    :init
+    (add-hook 'anaconda-mode #'company-anaconda)
+    (add-to-list 'company-backends 'company-anaconda))
+
+  (use-package sage-shell-mode
+    :ensure tree-sitter
+    :init
+    (add-to-list 'tree-sitter-major-mode-language-alist '(sage-shell:sage-mode . python))
+    (add-hook 'sage-shell:sage-mode-hook #'tree-sitter-mode))
+#+END_SRC
+
+*** Javascript, Typescript, JSX, TSX, HTML, CSS
+#+BEGIN_SRC emacs-lisp
+  (use-package web-mode
+    :ensure t
+    :mode ("\\.tsx\\'"
+           "\\.html?\\'"
+           "\\.tpl\\.php\\'"
+           "\\.[agj]sp\\'"
+           "\\.erb\\'"
+           "\\.mustache\\'")
+    :init
+    (setq sgml-basic-offset 4
+          web-mode-markup-indent-offset 4
+          web-mode-css-indent-offset 4
+          web-mode-code-indent-offset 4
+          web-mode-script-padding 4
+          web-mode-block-padding 4
+          web-mode-style-padding 4
+          web-mode-enable-auto-quoting nil)
+    (defun my/use-normal-pairs ()
+      (interactive)
+      (smartparens-strict-mode -1)
+      (smartparens-mode -1)
+      (show-smartparens-mode -1)
+      (evil-smartparens-mode -1)
+      (my/electric-pairs))
+    (add-hook 'web-mode-hook #'my/use-normal-pairs))
+
+  (use-package js
+    :init
+    (defun my/jsx-web-mode ()
+      (interactive)
+      (cl-letf (((symbol-function 'js-jsx--detect-and-enable) (lambda () t)))
+        (web-mode)
+        (web-mode-set-content-type "jsx")))
+    (advice-add 'js-jsx-enable :override #'my/jsx-web-mode))
+
+  (use-package typescript-mode)
 #+END_SRC
 
 ** Post Initialization
