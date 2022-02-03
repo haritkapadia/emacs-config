@@ -109,6 +109,7 @@ previously compiled manually then all of the package initialization will still t
 
   (eval-when-compile
     (require 'package)
+    (add-to-list 'package-archives '("gnu" . "https://elpa.gnu.org/packages/") t)
     (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
     (add-to-list 'package-archives '("org" . "http://orgmode.org/elpa/") t)
 
@@ -126,6 +127,13 @@ Timezone is useful when exporting Org Mode to iCal format.
 
 #+BEGIN_SRC emacs-lisp
   (setenv "TZ" "EDT")
+#+END_SRC
+
+** Changing default bindings
+
+#+BEGIN_SRC emacs-lisp
+  (global-unset-key (kbd "C-h"))
+  (global-set-key (kbd "C-z") #'zap-up-to-char)
 #+END_SRC
 
 ** Packages
@@ -151,41 +159,6 @@ Timezone is useful when exporting Org Mode to iCal format.
     :demand t
     :config
     (global-undo-tree-mode))
-#+END_SRC
-
-*** Evil
-#+BEGIN_SRC emacs-lisp
-  (use-package evil
-    :after undo-tree
-    :demand t
-    :init
-    (setq evil-undo-system 'undo-tree
-      evil-want-integration t
-      evil-want-keybinding nil
-      evil-move-beyond-eol t)
-    :config
-    (evil-mode 1)
-    (global-set-key (kbd "C-SPC") nil)
-    (evil-set-leader 'insert (kbd "C-SPC"))
-    (evil-set-leader 'normal (kbd "SPC")))
-#+END_SRC
-
-*** Evil Collection
-#+BEGIN_SRC emacs-lisp
-  (use-package evil-collection
-    :after evil
-    :demand t
-    :init
-    (evil-collection-init))
-#+END_SRC
-
-*** Evil Surround
-#+BEGIN_SRC emacs-lisp
-  (use-package evil-surround
-    :demand t
-    :after evil
-    :config
-    (global-evil-surround-mode 1))
 #+END_SRC
 
 *** Hydra
@@ -219,15 +192,35 @@ Generic completion frontend.
     :config
     (amx-mode 1))
 
-  (use-package swiper
-    :init
-    (evil-define-key nil evil-motion-state-map
-      "/" #'swiper-isearch
-      "?" #'swiper-isearch-backward))
+  (use-package swiper)
 
   (use-package ivy-rich
     :demand t
     :config
+    (defvar ek/ivy-rich-cache
+      (make-hash-table :test 'equal))
+
+    (defun ek/ivy-rich-cache-lookup (delegate candidate)
+      (let ((result (gethash candidate ek/ivy-rich-cache)))
+        (unless result
+          (setq result (funcall delegate candidate))
+          (puthash candidate result ek/ivy-rich-cache))
+        result))
+
+    (defun ek/ivy-rich-cache-reset ()
+      (clrhash ek/ivy-rich-cache))
+
+    (defun ek/ivy-rich-cache-rebuild ()
+      (mapc (lambda (buffer)
+              (ivy-rich--ivy-switch-buffer-transformer (buffer-name buffer)))
+            (buffer-list)))
+
+    (defun ek/ivy-rich-cache-rebuild-trigger ()
+      (ek/ivy-rich-cache-reset)
+      (run-with-idle-timer 1 nil 'ek/ivy-rich-cache-rebuild))
+
+    (advice-add 'ivy-rich--ivy-switch-buffer-transformer :around 'ek/ivy-rich-cache-lookup)
+    (advice-add 'ivy-switch-buffer :after 'ek/ivy-rich-cache-rebuild-trigger)
     (ivy-rich-mode 1))
 
   (use-package counsel
@@ -236,7 +229,7 @@ Generic completion frontend.
     (("<f1> f" . counsel-describe-function)
      ("<f1> v" . counsel-describe-variable)
      ("<f1> o" . counsel-describe-symbol)
-     ("<leader> f f" . #'counsel-find-file)
+     ("C-x C-f" . #'counsel-find-file)
      ("M-x" . counsel-M-x)))
 
   (use-package counsel-projectile)
@@ -265,9 +258,10 @@ Projectile is a quick and easy project management package that "just works".
     :config
     (projectile-mode +1)
     (bind-keys :map projectile-mode-map
-               ("<leader> p" . projectile-command-map)
-               ("<leader> t T" . projectile-run-eshell)
-               ("<leader> t S" . projectile-run-term)))
+               ("s-p" . projectile-command-map)
+               ("C-h p" . projectile-command-map)
+               ("C-h t T" . projectile-run-eshell)
+               ("C-h t S" . projectile-run-term)))
 #+END_SRC
 
 *** Org
@@ -279,11 +273,21 @@ want is prioritized instead.
   (use-package org
     :ensure org-plus-contrib
     :pin org
-    :defer t
+    :defer nil
     :init
-    (setq-default org-adapt-indentation nil))
+    (setq-default org-adapt-indentation nil)
+    (setq org-agenda-files '("~/HPK/org/" "~/HPK/org/calendar/")
+          org-log-done 'time
+          org-columns-default-format "%4TODO %40ITEM %SCHEDULED %DEADLINE %EFFORT{:} %CLOCKSUM{:}"
+          org-todo-keywords '((sequence "HOLD" "TODO" "|" "DONE" "CANCELLED"))
+          org-agenda-span 'day
+          org-highlight-latex-and-related '(latex script entities))
+    (set-time-zone-rule "America/Toronto")
+    (bind-keys ("C-h n a" . org-agenda)))
 
-  (use-package org-evil)
+  (use-package org-download
+    :ensure t
+    :after org)
 
   ;; Ensure ELPA org is prioritized above built-in org.
   (require 'cl)
@@ -328,6 +332,7 @@ want is prioritized instead.
     :demand t
     :init
     (add-hook 'after-init-hook #'global-company-mode)
+    (setq company-dabbrev-downcase nil)
     :bind
     (:map company-active-map
       ("C-M-i" . counsel-company)))
@@ -340,7 +345,7 @@ want is prioritized instead.
 #+BEGIN_SRC emacs-lisp
   (use-package yasnippet
     :diminish yas-minor-mode
-    :commands (yas/expand-snippet)
+    :demand t
     :init
     (add-hook 'yas-minor-mode-hook #'yas-reload-all)
     (mapc (lambda (e) (add-hook e #'yas-minor-mode))
@@ -360,6 +365,22 @@ want is prioritized instead.
                   '("tex" "el")))
     :config
     (add-to-list 'company-backends 'company-yasnippet))
+#+END_SRC
+
+*** Centred
+#+BEGIN_SRC emacs-lisp
+  (use-package visual-fill-column
+    :init
+    (cl-defun my/centered-window-mode (&optional (arg 'toggle))
+      (interactive)
+      (visual-fill-column-mode arg)
+      (setq visual-fill-column-center-text
+            (cond ((eql arg 'toggle) (not visual-fill-column-center-text))
+                  ((not (numberp arg)) nil)
+                  ((> 0 arg) t)
+                  (t nil)))
+      (visual-line-mode arg))
+    (bind-key "C-h C-s" #'my/centered-window-mode))
 #+END_SRC
 
 ** UI
@@ -397,7 +418,7 @@ want is prioritized instead.
     (scroll-bar-mode -1))
 #+END_SRC
 
-*** Smooth window management
+*** Smooth scroll
 #+BEGIN_SRC emacs-lisp
   (setq scroll-step 1
 	mouse-wheel-scroll-amount '(1 ((shift) . 1))
@@ -405,31 +426,86 @@ want is prioritized instead.
 	mouse-wheel-progressive-speed nil
 	frame-resize-pixelwise t)
 #+END_SRC
+*** Window management
+#+BEGIN_SRC emacs-lisp
+  (winner-mode)
+  (setq windmove-wrap-around t)
+  (windmove-default-keybindings)
+#+END_SRC
 *** Reduce noise
 #+BEGIN_SRC emacs-lisp
   (blink-cursor-mode -1)
   (setq ring-bell-function #'ignore)
+  (setq-default cursor-type '(bar . 3)
+                cursor-in-non-selected-windows nil)
+
+  (defun my/toggle-hl-line-mode ()
+    (interactive)
+    (hl-line-mode 'toggle))
+  (global-set-key (kbd "C-h C-h") #'my/toggle-hl-line-mode)
 #+END_SRC
 *** Color and font
 #+BEGIN_SRC emacs-lisp
   (use-package color-theme-sanityinc-tomorrow
     :demand t
     :config
-    (load-theme 'sanityinc-tomorrow-day t)
-    (set-face-attribute 'default nil :foreground "#000000"))
+    (flet ((bright ()
+                   (let ((color-theme-sanityinc-tomorrow-colors
+                          (mapcar (lambda (el)
+                                    (if (eql 'bright (car el))
+                                        (cons (car el)
+                                              (mapcar (lambda (c)
+                                                        (cons (car c)
+                                                              (cond ((eql 'background (car c)) "#121212")
+                                                                    ((eql 'alt-background (car c)) "#202020")
+                                                                    ((eql 'foreground (car c)) "#ffffff")
+                                                                    (t (cdr c)))))
+                                                      (cdr el)))
+                                      el))
+                                  color-theme-sanityinc-tomorrow-colors)))
+                     (load-theme 'sanityinc-tomorrow-bright t)))
+           (day ()
+                (let ((color-theme-sanityinc-tomorrow-colors
+                       (mapcar (lambda (el)
+                                 (if (eql 'day (car el))
+                                     (cons (car el)
+                                           (mapcar (lambda (c)
+                                                     (cons (car c)
+                                                           (cond ((eql 'foreground (car c)) "#000000")
+                                                                 (t (cdr c)))))
+                                                   (cdr el)))
+                                   el))
+                               color-theme-sanityinc-tomorrow-colors)))
+                  (load-theme 'sanityinc-tomorrow-day t))))
+      (day))
+    (load-theme 'general-sanityinc-modifications t))
 #+END_SRC
 
 *** Show Whitespace
 #+BEGIN_SRC emacs-lisp
-  (defun my/trailing-whitespace ()
-    "Show trailing whitespace."
+  (cl-defun my/trailing-whitespace (&optional (arg 'toggle))
+    "Toggle trailing whitespace."
     (interactive)
-    (setq show-trailing-whitespace t))
+    (setq show-trailing-whitespace
+          (if (eql arg 'toggle)
+              (not show-trailing-whitespace)
+            arg)))
+  (bind-key "C-h C-w" #'my/trailing-whitespace)
+  ;; BUG: Trailing whitespace highlighting does not show unless whitespace-mode has been called at least once (for daemon)
+  (add-hook 'server-after-make-frame-hook
+            (lambda ()
+              (whitespace-mode 'toggle)
+              (whitespace-mode 'toggle)))
+#+END_SRC
 
-  (defun my/no-trailing-whitespace ()
-    "Hide trailing whitespace."
-    (interactive)
-    (setq show-trailing-whitespace nil))
+*** Search and replace
+#+BEGIN_SRC emacs-lisp
+  (use-package visual-regexp-steroids
+    :init
+    (bind-keys ("C-M-r" . vr/isearch-backward)
+               ("C-M-s" . vr/isearch-forward)
+               ("C-c r" . vr/replace)
+               ("C-c q" . vr/query-replace)))
 #+END_SRC
 
 ** Files and Programming
@@ -441,22 +517,56 @@ want is prioritized instead.
 #+END_SRC
 *** Terminals
 #+BEGIN_SRC emacs-lisp
-  (bind-keys ("<leader> t t" . eshell)
-             ("<leader> t s" . term))
+  (bind-keys ("C-h t t" . eshell)
+             ("C-h t s" . term))
 #+END_SRC
 
 *** Edit files
 #+BEGIN_SRC emacs-lisp
   (defun my/find-init-org-file () (interactive) (find-file "~/.emacs.d/emacs.org"))
-  (evil-define-key nil evil-normal-state-map
-    (kbd "<leader> f F") #'find-alternate-file
-    (kbd "<leader> f r") #'find-file-read-only
-    (kbd "<leader> f q") #'read-only-mode
-    (kbd "<leader> f e") #'my/find-init-org-file)
+  (global-set-key (kbd "C-h f e") #'my/find-init-org-file)
+
 #+END_SRC
 
 *** Pairs
 #+BEGIN_SRC emacs-lisp
+  (use-package smartparens
+    :hook
+    (smartparens-mode-hook . show-smartparens-mode)
+    (smartparens-mode-hook . my/disable-regular-pairs)
+    (prog-mode-hook . smartparens-strict-mode)
+    :config
+    (require 'smartparens-config)
+    (defhydra hydra-slarf (smartparens-mode-map "C-h s")
+      "Slurp and barf expression"
+      ("." sp-forward-slurp-sexp)
+      ("," sp-forward-barf-sexp)
+      (">" sp-backward-slurp-sexp)
+      ("<" sp-backward-barf-sexp))
+    (bind-keys :map smartparens-mode-map
+               ("C-M-f" . sp-forward-sexp)
+               ("C-M-b" . sp-backward-sexp)
+               ("M-n" . sp-down-sexp)
+               ("M-p" . sp-backward-up-sexp)
+               ("M-N" . sp-backward-down-sexp)
+               ("M-P" . sp-up-sexp)
+               ("C-M-k" . sp-kill-sexp)
+               ("C-M-a" . sp-beginning-of-sexp)
+               ("C-M-e" . sp-end-of-sexp)
+               ("C-h s j" . sp-join-sexp)
+               ("C-h s J" . sp-split-sexp)
+               ("C-h s u" . sp-splice-sexp)
+               ("C-h s s" . sp-rewrap-sexp)))
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+  (defun my/disable-regular-pairs ()
+    (interactive)
+    (electric-pair-mode 0)
+    (show-paren-mode 0))
+
+  (make-variable-buffer-local 'electric-pair-mode)
+  (make-variable-buffer-local 'show-paren-mode)
   (electric-pair-mode)
   (show-paren-mode)
 #+END_SRC
@@ -474,9 +584,12 @@ or Cargo).
 #+BEGIN_SRC emacs-lisp
   (use-package lsp-mode
     :init
-    (setq lsp-keymap-prefix "<leader> o")
+    (setq lsp-keymap-prefix "s-o")
     :hook ((lsp-mode-hook . lsp-enable-which-key-integration))
-    :commands lsp)
+    :commands lsp
+    :config
+    (define-key lsp-mode-map (kbd "s-o") lsp-command-map)
+    (define-key lsp-mode-map (kbd "C-h o") lsp-command-map))
 
   (use-package lsp-ui :commands lsp-ui-mode)
   (use-package lsp-ivy :commands lsp-ivy-workspace-symbol)
@@ -488,10 +601,11 @@ or Cargo).
 #+BEGIN_SRC emacs-lisp
   (setq sentence-end-double-space nil)
   (setq-default indent-tabs-mode nil
-		tab-width 4
-		c-basic-offset 4
-		cperl-indent-level 4
-		fill-column 80)
+        tab-width 4
+        fill-column 80)
+
+  (defvaralias 'c-basic-offset 'tab-width)
+  (defvaralias 'cperl-indent-level 'tab-width)
 #+END_SRC
 *** JSON, YAML, Markdown
 #+BEGIN_SRC emacs-lisp
@@ -501,34 +615,19 @@ or Cargo).
   (use-package edit-indirect :after markdown-mode)
 #+END_SRC
 *** Lisps
-See [[https://github.com/noctuid/lispyville]] for Lispyville key themes.
-
-#+BEGIN_SRC emacs-lisp
-  (use-package lispy
-    :init
-    (add-hook 'emacs-lisp-mode-hook #'lispy-mode)
-    (add-hook 'common-lisp-mode-hook #'lispy-mode)
-    (add-hook 'lisp-mode-hook #'lispy-mode)
-    (add-hook 'racket-mode-hook #'lispy-mode))
-
-  (use-package lispyville
-    :init
-    (add-hook 'lispy-mode-hook #'lispyville-mode)
-    :config
-    (lispyville-set-key-theme '(operators c-w text-objects atom-motions additional-motions slurp/barf-cp)))
-#+END_SRC
-
 **** Common Lisp
  #+BEGIN_SRC emacs-lisp
    (use-package slime
+     :ensure slime-company
      :commands
      (slime)
      :config
+     (dolist (k '("M-n" "M-p" "C-M-a" "C-M-e"))
+       (define-key slime-mode-indirect-map (kbd k) nil))
      (setq inferior-lisp-program "sbcl")
      (slime-setup '(slime-fancy slime-company)))
 
-   (use-package slime-company
-     :after (slime company))
+   (use-package slime-company)
  #+END_SRC
 
 **** Racket
@@ -578,22 +677,15 @@ See [[https://github.com/noctuid/lispyville]] for Lispyville key themes.
            "\\.erb\\'"
            "\\.mustache\\'")
     :init
-    (setq sgml-basic-offset 4
-          web-mode-markup-indent-offset 4
-          web-mode-css-indent-offset 4
-          web-mode-code-indent-offset 4
-          web-mode-script-padding 4
-          web-mode-block-padding 4
-          web-mode-style-padding 4
-          web-mode-enable-auto-quoting nil)
-    (defun my/use-normal-pairs ()
-      (interactive)
-      (smartparens-strict-mode -1)
-      (smartparens-mode -1)
-      (show-smartparens-mode -1)
-      (evil-smartparens-mode -1)
-      (my/electric-pairs))
-    (add-hook 'web-mode-hook #'my/use-normal-pairs))
+    (setq sgml-basic-offset 2
+          web-mode-markup-indent-offset 2
+          web-mode-css-indent-offset 2
+          web-mode-code-indent-offset 2
+          web-mode-script-padding 2
+          web-mode-block-padding 2
+          web-mode-style-padding 2
+          tab-width 2
+          web-mode-enable-auto-quoting nil))
 
   (use-package js
     :init
@@ -605,6 +697,25 @@ See [[https://github.com/noctuid/lispyville]] for Lispyville key themes.
     (advice-add 'js-jsx-enable :override #'my/jsx-web-mode))
 
   (use-package typescript-mode)
+#+END_SRC
+
+*** C mode
+#+BEGIN_SRC emacs-lisp
+  (defun my/c-indentation ()
+    (setq tab-width 8
+          backward-delete-function nil
+          indent-tabs-mode t)
+    (c-set-offset 'substatement-open '0)
+    (c-set-offset 'inline-open '+)
+    (c-set-offset 'block-open '+)
+    (c-set-offset 'brace-list-open '+)
+    (c-set-offset 'arglist-intro '+)
+    (c-set-offset 'arglist-close '0)
+    (c-set-offset 'arglist-cont-nonempty '0)
+    (highlight-regexp "^\t* +"))
+
+  (add-hook 'c-mode-hook #'my/c-indentation)
+  (add-hook 'c++-mode-hook #'my/c-indentation)
 #+END_SRC
 
 ** Post Initialization
