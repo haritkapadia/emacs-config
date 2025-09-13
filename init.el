@@ -30,11 +30,11 @@
   (when (fboundp 'scroll-bar-mode) (scroll-bar-mode -1)))
 
 (defun feature/smooth-scroll ()
-  (setq scroll-step 1) 
-  (setq mouse-wheel-scroll-amount '(1 ((shift) . 1))) 
-  (setq mouse-wheel-follow-mouse t) 
-  (setq mouse-wheel-progressive-speed nil) 
-  (setq frame-resize-pixelwise t) 
+  (setq scroll-step 1)
+  (setq mouse-wheel-scroll-amount '(1 ((shift) . 1)))
+  (setq mouse-wheel-follow-mouse t)
+  (setq mouse-wheel-progressive-speed nil)
+  (setq frame-resize-pixelwise t)
   (setq pixel-scroll-precision-mode t))
 
 (defun feature/empty-line-indicator ()
@@ -43,8 +43,8 @@
 (defun feature/cursor ()
   (blink-cursor-mode -1)
   (setq ring-bell-function #'ignore)
-  (setq-default cursor-type '(bar . 3)) 
-  (setq cursor-in-non-selected-windows nil))
+  (setq-default cursor-type '(bar . 3))
+  (setq-default cursor-in-non-selected-windows nil))
 
 (defun feature/sentence ()
   (setq sentence-end-double-space nil))
@@ -79,7 +79,7 @@
     (org-babel-do-load-languages
      'org-babel-load-languages
      '((maxima . t)
-	   (dot . t)))    
+       (dot . t)))
 
     (add-hook 'after-save-hook #'org-icalendar-combine-agenda-files nil t)
 
@@ -90,15 +90,15 @@
        (let (categories)
          (dolist (type org-icalendar-categories (nreverse categories))
            (message "Boring. %s" type)
-	       (cl-case type
+           (cl-case type
              (my/scheduled
-	          (let ((todo (org-element-property :scheduled entry)))
+              (let ((todo (org-element-property :scheduled entry)))
                 (message "Epic!. %s" type)
-	            (and todo (push "SCHEDULED" categories))))
-	         (my/deadline
-	          (let ((todo (org-element-property :deadline entry)))
+                (and todo (push "SCHEDULED" categories))))
+             (my/deadline
+              (let ((todo (org-element-property :deadline entry)))
                 (message "Awesome!. %s" type)
-	            (and todo (push "DEADLINE" categories)))))))))
+                (and todo (push "DEADLINE" categories)))))))))
 
     (fset 'real/org-icalendar-get-categories (symbol-function 'org-icalendar-get-categories))
     (fmakunbound 'org-icalendar-get-categories)
@@ -121,12 +121,12 @@
     :demand t)
 
   (use-package org-ql
-	:bind
-	(("C-h q" . org-ql-view)))
+    :bind
+    (("C-h q" . org-ql-view)))
 
   (use-package org-fragtog
-	:config
-	(advice-add 'org-insert-item :after #'org-preview-latex-fragment)))
+    :config
+    (advice-add 'org-insert-item :after #'org-preview-latex-fragment)))
 
 (defun feature/selection ()
   (defun selection-calculate (beg end calculator)
@@ -166,14 +166,14 @@
     (interactive)
     (set-selective-display
      (cond ((null selective-display) 1)
-		   (t (1+ selective-display)))))
+           (t (1+ selective-display)))))
 
   (defun my/decf-selective-display ()
     (interactive)
     (set-selective-display
      (cond ((null selective-display) 1)
-		   ((<= selective-display 1) 1)
-		   (t (1- selective-display)))))
+           ((<= selective-display 1) 1)
+           (t (1- selective-display)))))
 
   (bind-key "C-(" #'my/decf-selective-display)
   (bind-key "C-)" #'my/incf-selective-display))
@@ -186,6 +186,18 @@
   (defun my/indent-spaces-mode ()
     (interactive)
     (indent-tabs-mode -1))
+
+  (defun my/tab-width-2 ()
+    (interactive)
+    (setq-local tab-width 2))
+
+  (defun my/tab-width-4 ()
+    (interactive)
+    (setq-local tab-width 4))
+
+  (defun my/tab-width-8 ()
+    (interactive)
+    (setq-local tab-width 8))
 
   (setq-default indent-tabs-mode t)
   (setq-default tab-width 4))
@@ -230,54 +242,54 @@
   (setq treesit-font-lock-level 4)
 
   (use-package treesit-auto
-	:demand t
+    :demand t
 
-	:custom
-	(treesit-auto-install 'prompt)
+    :custom
+    (treesit-auto-install 'prompt)
 
-	:config
-	;; this fixes a problem where v0.20.4 of this grammar blows up with emacs
-	(defvar genehack/tsx-treesit-auto-recipe
-	  (make-treesit-auto-recipe
-	   :lang 'tsx
-	   :ts-mode 'tsx-ts-mode
-	   :remap '(typescript-tsx-mode)
-	   :requires 'typescript
-	   :url "https://github.com/tree-sitter/tree-sitter-typescript"
-	   :revision "v0.20.2"
-	   :source-dir "tsx/src"
-	   :ext "\\.tsx\\'")
-	  "Recipe for libtree-sitter-tsx")
-	(add-to-list 'treesit-auto-recipe-list genehack/tsx-treesit-auto-recipe)
+    :config
+    ;; this fixes a problem where v0.20.4 of this grammar blows up with emacs
+    (defvar genehack/tsx-treesit-auto-recipe
+      (make-treesit-auto-recipe
+       :lang 'tsx
+       :ts-mode 'tsx-ts-mode
+       :remap '(typescript-tsx-mode)
+       :requires 'typescript
+       :url "https://github.com/tree-sitter/tree-sitter-typescript"
+       :revision "v0.20.2"
+       :source-dir "tsx/src"
+       :ext "\\.tsx\\'")
+      "Recipe for libtree-sitter-tsx")
+    (add-to-list 'treesit-auto-recipe-list genehack/tsx-treesit-auto-recipe)
 
-	(defvar genehack/typescript-treesit-auto-recipe
-	  (make-treesit-auto-recipe
-	   :lang 'typescript
-	   :ts-mode 'typescript-ts-mode
-	   :remap 'typescript-mode
-	   :requires 'tsx
-	   :url "https://github.com/tree-sitter/tree-sitter-typescript"
-	   :revision "v0.20.2"
-	   :source-dir "typescript/src"
-	   :ext "\\.ts\\'")
-	  "Recipe for libtree-sitter-typescript")
-	(add-to-list 'treesit-auto-recipe-list genehack/typescript-treesit-auto-recipe)
+    (defvar genehack/typescript-treesit-auto-recipe
+      (make-treesit-auto-recipe
+       :lang 'typescript
+       :ts-mode 'typescript-ts-mode
+       :remap 'typescript-mode
+       :requires 'tsx
+       :url "https://github.com/tree-sitter/tree-sitter-typescript"
+       :revision "v0.20.2"
+       :source-dir "typescript/src"
+       :ext "\\.ts\\'")
+      "Recipe for libtree-sitter-typescript")
+    (add-to-list 'treesit-auto-recipe-list genehack/typescript-treesit-auto-recipe)
 
     (add-to-list 'treesit-language-source-alist '(jsdoc "https://github.com/tree-sitter/tree-sitter-jsdoc" "master" "src"))
     (defvar my/jsdoc-treesit-auto-recipe
-	  (make-treesit-auto-recipe
-	   :lang 'jsdoc
-	   :url "https://github.com/tree-sitter/tree-sitter-jsdoc")
-	  "Recipe for libtree-sitter-jsdoc")
-	(add-to-list 'treesit-auto-recipe-list my/jsdoc-treesit-auto-recipe)
+      (make-treesit-auto-recipe
+       :lang 'jsdoc
+       :url "https://github.com/tree-sitter/tree-sitter-jsdoc")
+      "Recipe for libtree-sitter-jsdoc")
+    (add-to-list 'treesit-auto-recipe-list my/jsdoc-treesit-auto-recipe)
 
     (dolist (recipe treesit-auto-recipe-list)
       (when (equal 'javascript (treesit-auto-recipe-lang recipe))
         (setf (cl-struct-slot-value 'treesit-auto-recipe 'requires recipe) 'jsdoc)))
 
-	(treesit-auto-add-to-auto-mode-alist 'all)
+    (treesit-auto-add-to-auto-mode-alist 'all)
 
-	(global-treesit-auto-mode)))
+    (global-treesit-auto-mode)))
 
 (defun feature/magit ()
   (use-package magit)
@@ -296,59 +308,59 @@
 
 (defun feature/completion ()
   (use-package orderless
-	:demand t
-	:init
-	(setq read-file-name-completion-ignore-case t)
-	(setq read-buffer-completion-ignore-case t)
-	(setq completion-ignore-case t)
-	(setq completion-styles '(orderless basic))
+    :demand t
+    :init
+    (setq read-file-name-completion-ignore-case t)
+    (setq read-buffer-completion-ignore-case t)
+    (setq completion-ignore-case t)
+    (setq completion-styles '(orderless basic))
     (setq completion-category-defaults nil)
     (setq completion-category-overrides '((file (styles partial-completion)))))
 
   (use-package vertico
-	:demand t
-	:init
-	;; Do not allow the cursor in the minibuffer prompt
-	(setq minibuffer-prompt-properties '(read-only t cursor-intangible t face minibuffer-prompt))
-	;; Support opening new minibuffers from inside existing minibuffers.
-	(setq enable-recursive-minibuffers t)
-	;; Emacs 28 and newer: Hide commands in M-x which do not work in the current
-	;; mode.  Vertico commands are hidden in normal buffers.
-	(setq read-extended-command-predicate #'command-completion-default-include-p)
-	:hook
-	('minibuffer-setup-hook . #'cursor-intangible-mode)
-	:bind
-	(:map vertico-map
-		  ("<backtab>" . #'vertico-directory-up))
-	:config
-	(vertico-mode))
+    :demand t
+    :init
+    ;; Do not allow the cursor in the minibuffer prompt
+    (setq minibuffer-prompt-properties '(read-only t cursor-intangible t face minibuffer-prompt))
+    ;; Support opening new minibuffers from inside existing minibuffers.
+    (setq enable-recursive-minibuffers t)
+    ;; Emacs 28 and newer: Hide commands in M-x which do not work in the current
+    ;; mode.  Vertico commands are hidden in normal buffers.
+    (setq read-extended-command-predicate #'command-completion-default-include-p)
+    :hook
+    ('minibuffer-setup-hook . #'cursor-intangible-mode)
+    :bind
+    (:map vertico-map
+          ("<backtab>" . #'vertico-directory-up))
+    :config
+    (vertico-mode))
 
   (use-package marginalia
-	:after vertico
-	:demand t
-	:config
-	(marginalia-mode))
+    :after vertico
+    :demand t
+    :config
+    (marginalia-mode))
 
   (use-package corfu
-	;; Optional customizations
-	;; :custom
-	;; (corfu-cycle t)                ;; Enable cycling for `corfu-next/previous'
-	;; (corfu-auto t)                 ;; Enable auto completion
-	;; (corfu-separator ?\s)          ;; Orderless field separator
-	;; (corfu-quit-at-boundary nil)   ;; Never quit at completion boundary
-	;; (corfu-quit-no-match nil)      ;; Never quit, even if there is no match
-	;; (corfu-preview-current nil)    ;; Disable current candidate preview
-	;; (corfu-preselect 'prompt)      ;; Preselect the prompt
-	;; (corfu-on-exact-match nil)     ;; Configure handling of exact matches
-	;; (corfu-scroll-margin 5)        ;; Use scroll margin
+    ;; Optional customizations
+    ;; :custom
+    ;; (corfu-cycle t)                ;; Enable cycling for `corfu-next/previous'
+    ;; (corfu-auto t)                 ;; Enable auto completion
+    ;; (corfu-separator ?\s)          ;; Orderless field separator
+    ;; (corfu-quit-at-boundary nil)   ;; Never quit at completion boundary
+    ;; (corfu-quit-no-match nil)      ;; Never quit, even if there is no match
+    ;; (corfu-preview-current nil)    ;; Disable current candidate preview
+    ;; (corfu-preselect 'prompt)      ;; Preselect the prompt
+    ;; (corfu-on-exact-match nil)     ;; Configure handling of exact matches
+    ;; (corfu-scroll-margin 5)        ;; Use scroll margin
 
-	;; Enable Corfu only for certain modes.
-	;; :hook ((prog-mode . corfu-mode)
-	;;        (shell-mode . corfu-mode)
-	;;        (eshell-mode . corfu-mode))
+    ;; Enable Corfu only for certain modes.
+    ;; :hook ((prog-mode . corfu-mode)
+    ;;        (shell-mode . corfu-mode)
+    ;;        (eshell-mode . corfu-mode))
 
-	:init
-	(global-corfu-mode))
+    :init
+    (global-corfu-mode))
 
   (use-package consult
     :bind
@@ -357,14 +369,16 @@
 
 (defun feature/avy ()
   (use-package avy
-	:bind
-	(("M-g c" . avy-goto-char)
-	 ("M-g g" . avy-goto-line)
-	 :map isearch-mode-map
-	 ("M-j" . avy-isearch))))
+    :bind
+    (("M-g c" . avy-goto-char)
+     ("M-g g" . avy-goto-line)
+     :map isearch-mode-map
+     ("M-j" . avy-isearch))))
 
 (defun feature/parens ()
-  (use-package puni)
+  (add-hook 'prog-mode-hook #'electric-pair-mode)
+
+  (straight-use-package 'puni)
 
   (use-package combobulate
     :straight (combobulate :type git :host github :repo "mickeynp/combobulate")
@@ -384,11 +398,12 @@
                      'display vr/match-separator-string
                      'separator t))))
     :bind
-    (("C-h r" . vr/replace)
+    (("C-h r" . vr/query-replace)
      :map vr/minibuffer-keymap
      ("M-s" . my/vr/insert-separator))
     :custom
-    (vr/match-separator-use-custom-face t)))
+    (vr/match-separator-use-custom-face t)
+    (vr/query-replace-from-history-variable 'regexp-search-ring)))
 
 (defun feature/crux ()
   (use-package crux
@@ -429,7 +444,7 @@
     :hook
     (lsp-mode-hook . lsp-diagnostics-mode)
     (lsp-mode-hook . lsp-enable-which-key-integration)
-    (lsp-mode-hook . lsp-completion-mode) 
+    (lsp-mode-hook . lsp-completion-mode)
     (lsp-mode-hook . flycheck-mode)
    :custom
     (lsp-keymap-prefix "C-h p")
@@ -578,8 +593,288 @@
 (defun feature/terraform ()
   (straight-use-package 'terraform-mode))
 
+(defun feature/rust ()
+  (defvaralias 'rust-ts-mode-indent-offset 'tab-width)
+  (add-hook 'rust-ts-mode-hook #'my/indent-tabs-mode)
+  (add-hook 'rust-ts-mode-hook #'my/tab-width-2))
+
+(defun feature/dap ()
+  (straight-use-package 'dap-mode)
+  (require 'dap-python)
+  (setq dap-python-debugger 'debugpy))
+
+(defun feature/modalka ()
+  (straight-use-package 'modalka)
+  (require 'modalka)
+  (require 'visible-mark)
+
+  (add-hook 'modalka-mode-hook #'visible-mark-mode)
+
+  (setq-default cursor-type 'hbar)
+  (setq modalka-cursor-type 'bar)
+
+  (setq-local my/region-stack '())
+
+  (defun my/push-region (beg end pos)
+    (interactive "rd")
+    (push (list pos (if (= beg pos) end beg)) my/region-stack))
+
+  (defun my/pop-region ()
+    (interactive)
+    (pcase-let ((`(,pos ,mark) (pop my/region-stack)))
+      (push-mark mark t t)
+      (goto-char pos)))
+
+  (defun my/enable-modalka-mode () (interactive) (modalka-mode))
+  (defun my/disable-modalka-mode () (interactive) (modalka-mode -1))
+
+  (defun my/treesit-get-last-leaf (node)
+    (let ((count (treesit-node-child-count node)))
+      (if (= 0 count)
+          node
+        (my/treesit-get-last-leaf (treesit-node-child node (- count 1))))))
+
+  (defun my/treesit-get-first-leaf (node)
+    (let ((count (treesit-node-child-count node)))
+      (if (= 0 count)
+          node
+        (my/treesit-get-first-leaf (treesit-node-child node 0)))))
+
+  (defun my/treesit-prev-leaf (node)
+    (let ((node-start (treesit-node-start node)))
+      (when (> node-start (buffer-end -1))
+        (let ((matching-ancestor (treesit-parent-while node (lambda (p) (= node-start (treesit-node-start p))))))
+          (when matching-ancestor
+            (let ((prev-sibling (treesit-node-prev-sibling matching-ancestor)))
+              (when prev-sibling
+                (my/treesit-get-last-leaf prev-sibling))))))))
+
+  (defun my/treesit-next-leaf (node)
+    (let ((node-end (treesit-node-end node)))
+      (when (< node-end (buffer-end 1))
+        (let ((matching-ancestor (treesit-parent-while node (lambda (p) (= node-end (treesit-node-end p))))))
+          (when matching-ancestor
+            (let ((next-sibling (treesit-node-next-sibling matching-ancestor)))
+              (when next-sibling
+                (my/treesit-get-first-leaf next-sibling))))))))
+
+  (defun my/backward-symbol (arg)
+    (interactive "p")
+    (let* ((point (point))
+           (node (and (treesit-available-p) (treesit-language-at point) (treesit-node-at point))))
+      (if node
+          (let* ((node-start (treesit-node-start node))
+                 (node-end (treesit-node-end node))
+                 (correct-node-start
+                  (cond ((> point node-end) node-end)
+                        ((> point node-start) node-start)
+                        (t
+                         (let ((prev-leaf (my/treesit-prev-leaf node)))
+                           (if prev-leaf (treesit-node-start prev-leaf)
+                             (buffer-end -1)))))))
+            (goto-char correct-node-start))
+        (forward-symbol (- arg)))))
+
+  (defun my/get-bounds (backward-function forward-function current arg)
+    (let ((bounds nil))
+      (save-excursion
+        (funcall forward-function arg)
+        (setq maybe-end (point))
+        (funcall backward-function arg)
+        (setq maybe-start (point))
+        (when (and (<= maybe-start current) (<= current maybe-end))
+          (setq bounds (cons maybe-start maybe-end))))
+
+      (unless bounds
+        (save-excursion
+          (funcall backward-function arg)
+          (setq maybe-start (point))
+          (funcall forward-function arg)
+          (setq maybe-end (point))
+          (when (and (<= maybe-start current) (<= current maybe-end))
+            (setq bounds (cons maybe-start maybe-end)))))
+
+      bounds))
+
+  (defun my/mark-thing (backward-function forward-function current arg)
+    (let ((bounds (my/get-bounds backward-function forward-function current arg)))
+      (when bounds
+        (push-mark (car bounds) t t)
+        (goto-char (cdr bounds)))))
+
+  (defun my/mark-word (current arg)
+    (interactive "d\np")
+    (my/mark-thing #'backward-word #'forward-word current arg))
+
+  (defun my/mark-symbol (current arg)
+    (interactive "d\np")
+    (my/mark-thing #'my/backward-symbol #'my/forward-symbol current arg))
+
+  (defun my/backward-line (arg)
+    (interactive "p")
+    (cond ((= 0 (current-column)) (previous-line arg))
+          (t (beginning-of-line)
+             (previous-line (- arg 1)))))
+
+  (defun my/forward-line (arg)
+    (interactive "p")
+    (beginning-of-line)
+    (next-line arg))
+
+  (defun my/mark-line (current arg)
+    (interactive "d\np")
+    (my/mark-thing #'my/backward-line #'my/forward-line current arg))
 
 
+  (defun my/forward-symbol (arg)
+    (interactive "p")
+    (let* ((point (point))
+           (node (and (treesit-available-p) (treesit-language-at point) (treesit-node-at point))))
+      (if node
+          (let* ((node-start (treesit-node-start node))
+                 (node-end (treesit-node-end node))
+                 (same-node-at-end (treesit-node-eq node (treesit-node-at node-end)))
+                 (correct-node-end
+                  (cond ((> point node-end) point)
+                        ((< point node-start) node-start)
+                        (same-node-at-end
+                         (let ((next-leaf (my/treesit-next-leaf node)))
+                           (if next-leaf (treesit-node-start next-leaf) (buffer-end 1))))
+                        (t node-end))))
+            (goto-char correct-node-end))
+        (forward-symbol arg))))
+
+  (defun my/change-line () (interactive) (my/disable-modalka-mode) (funcall (key-binding (kbd "C-k"))))
+  (defun my/change-point () (interactive) (my/disable-modalka-mode) (funcall (key-binding (kbd "C-d"))))
+  (defun my/change-point-backward () (interactive) (my/disable-modalka-mode) (funcall (key-binding (kbd "DEL"))))
+  (defun my/change-region (beg end) (interactive "r") (my/disable-modalka-mode) (funcall (key-binding (kbd "C-w"))))
+
+  (defun my/isearch-done--around (f &rest args)
+    (let ((to-mark isearch-other-end))
+      (funcall f args)
+      (push-mark to-mark t nil)))
+
+  (advice-add 'isearch-done :around #'my/isearch-done--around)
+
+  (defun my/deactivate-mark ()
+    (interactive)
+    (when (region-active-p) (deactivate-mark))
+    (when isearch-overlay (isearch-done t t)))
+
+  (defun my/open-below ()
+    (interactive)
+    (my/disable-modalka-mode)
+    (funcall (key-binding (kbd "C-e")) 1)
+    (newline 1)
+    (funcall indent-line-function))
+
+  (defun my/open-above ()
+    (interactive)
+    (my/disable-modalka-mode)
+    (funcall (key-binding (kbd "C-a")) 1)
+    (open-line 1)
+    (funcall indent-line-function))
+
+  (defun my/push-mark-around (backward-function forward-function direction)
+    (lambda (point arg)
+      (interactive "d\np")
+      (cond ((< direction 0) (funcall backward-function arg))
+            (t (funcall forward-function arg)))
+      (unless (region-active-p)
+        (let ((bounds (my/get-bounds backward-function forward-function (point) 1)))
+          (when bounds
+            (cond ((< direction 0) (push-mark (cdr bounds) t nil))
+                  (t (push-mark (car bounds) t nil))))))))
+
+  (defun my/push-mark (movement-function)
+    (lambda (point)
+      (interactive "d")
+      (push-mark point t nil)
+      (funcall movement-function)))
+
+  (defun my/isearch-repeat-forward (arg)
+    (interactive "p")
+    (isearch-repeat-forward arg)
+    (push-mark isearch-other-end t))
+
+  (defun my/isearch-repeat-backward (arg)
+    (interactive "p")
+    (isearch-repeat-backward arg)
+    (push-mark isearch-other-end t))
+
+  (require 'transient)
+  (require 'puni)
+
+  (dolist (key '("1" "2" "3" "4" "5" "6" "7" "8" "9" "0" "-" "=" "!" "@" "#" "$" "%" "^" "&" "*" "(" ")" "-" "+" "<backspace>" "a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p" "q" "r" "s" "t" "u" "v" "w" "x" "y" "z" "A" "B" "C" "D" "E" "F" "G" "H" "I" "J" "K" "L" "M" "N" "O" "P" "Q" "R" "S" "T" "U" "V" "W" "X" "Y" "Z" "[" "]" "{" "}" "\\" "|" ";" ":" "'" "\"" "<return>" "," "<" "." ">" "/" "?"))
+    (define-key modalka-mode-map (kbd key) #'transient-noop))
+
+  (global-set-key (kbd "<escape>") #'my/enable-modalka-mode)
+
+  (define-key modalka-mode-map (kbd "a") #'my/disable-modalka-mode)
+  (define-key modalka-mode-map (kbd "b") (my/push-mark-around #'backward-word #'forward-word -1))
+  (define-key modalka-mode-map (kbd "B") (my/push-mark-around #'my/backward-symbol #'my/forward-symbol -1))
+  (define-key modalka-mode-map (kbd "c") #'my/change-region)
+  (define-key modalka-mode-map (kbd "C") #'my/change-line)
+  (modalka-define-kbd "d" "C-w")
+  (modalka-define-kbd "D" "C-k")
+  (define-key modalka-mode-map (kbd "e") (my/push-mark-around #'backward-word #'forward-word 1))
+  (define-key modalka-mode-map (kbd "E") (my/push-mark-around #'my/backward-symbol #'my/forward-symbol 1))
+  (define-key modalka-mode-map (kbd "g") #'my/deactivate-mark)
+  (modalka-define-kbd "h" "C-b")
+  (modalka-define-kbd "H" "C-a")
+  (define-key modalka-mode-map (kbd "i") #'my/disable-modalka-mode)
+  (modalka-define-kbd "j" "C-n")
+  (modalka-define-kbd "k" "C-p")
+  (modalka-define-kbd "l" "C-f")
+  (modalka-define-kbd "L" "C-e")
+  (modalka-define-kbd "m" "M-m")
+  (define-key modalka-mode-map (kbd "n") #'my/isearch-repeat-forward)
+  (define-key modalka-mode-map (kbd "N") #'my/isearch-repeat-backward)
+  (define-key modalka-mode-map (kbd "o") #'my/open-below)
+  (define-key modalka-mode-map (kbd "O") #'my/open-above)
+  (modalka-define-kbd "p" "C-y")
+  (define-key modalka-mode-map (kbd "s") #'my/change-point)
+  (define-key modalka-mode-map (kbd "S") #'my/change-point-backward)
+  (modalka-define-kbd "u" "C-/")
+  (modalka-define-kbd "U" "C-?")
+  (define-key modalka-mode-map (kbd "v") #'my/mark-line)
+  (define-key modalka-mode-map (kbd "w") #'my/mark-word)
+  (define-key modalka-mode-map (kbd "W") #'my/mark-symbol)
+  (modalka-define-kbd "X" "DEL")
+  (modalka-define-kbd "x" "C-d")
+  (modalka-define-kbd "y" "M-w")
+  (define-key modalka-mode-map (kbd "z") #'my/pop-region)
+  (define-key modalka-mode-map (kbd "[") (my/push-mark-around #'puni-backward-sexp #'puni-forward-sexp -1))
+  (define-key modalka-mode-map (kbd "]") (my/push-mark-around #'puni-backward-sexp #'puni-forward-sexp 1))
+  (define-key modalka-mode-map (kbd "{") (my/push-mark-around #'backward-paragraph #'forward-paragraph -1))
+  (define-key modalka-mode-map (kbd "}") (my/push-mark-around #'backward-paragraph #'forward-paragraph 1))
+  (define-key modalka-mode-map (kbd ",") (my/push-mark #'puni-beginning-of-sexp))
+  (define-key modalka-mode-map (kbd ".") (my/push-mark #'puni-end-of-sexp))
+  (modalka-define-kbd "/" "C-M-s")
+  (modalka-define-kbd "?" "C-M-r")
+  (modalka-define-kbd ";" "C-x C-x")
+  (define-key modalka-mode-map (kbd "-") #'puni-mark-sexp-at-point)
+  (modalka-define-kbd "SPC" "C-SPC")
+
+  (setq colon-map (make-sparse-keymap))
+  (define-key modalka-mode-map (kbd ":") colon-map)
+  (define-key colon-map (kbd "e") #'find-file)
+  (define-key colon-map (kbd "s") #'vr/query-replace)
+  (define-key colon-map (kbd "w") #'save-buffer)
+  (define-key colon-map (kbd "g") #'magit)
+  (define-key colon-map (kbd "b") #'switch-to-buffer)
+
+  (modalka-define-kbd "C-o" "C-x o")
+
+  (add-hook 'text-mode-hook #'modalka-mode)
+  (add-hook 'prog-mode-hook #'modalka-mode))
+
+(defun feature/clean-file-on-save ()
+  (defun my/add-clean-file-hook ()
+    (add-hook 'after-save-hook #'whitespace-cleanup nil t))
+  (add-hook 'prog-mode-hook #'my/add-clean-file-hook))
+
+(load "~/.emacs.d/private.el")
 
 (defun main ()
   (load-features
@@ -598,7 +893,8 @@
    #'feature/whitespace-mode
    #'feature/no-file-locks
    #'feature/recentf
-   #'feature/project)
+   #'feature/project
+   #'feature/clean-file-on-save)
 
   (load-features
    #'feature/diminish
@@ -617,9 +913,11 @@
    #'feature/text-wrap
    #'feature/terminal-here
    #'feature/stupid-indent-mode
-   #'feature/lsp)
+   #'feature/lsp
+   #'feature/mu4e)
 
   (load-features
+   #'feature/modalka
    #'feature/markdown
    #'feature/sage
    #'feature/maxima
@@ -637,7 +935,8 @@
    #'feature/idris2
    #'feature/scala
    #'feature/json
-   #'feature/terraform))
+   #'feature/terraform
+   #'feature/rust))
 
 (main)
 
@@ -652,6 +951,7 @@
  '(default ((t (:inherit nil :extend nil :stipple nil :inverse-video nil :box nil :strike-through nil :overline nil :underline nil :slant normal :weight regular :height 100 :width normal :family "Verily Serif Mono"))))
  '(org-ellipsis ((t (:inherit 'shadow))))
  '(variable-pitch ((t (:height 1.375 :family "Times New Roman"))))
+ '(visible-mark-face ((t (:background "grey90"))))
  '(whitespace-space ((t (:foreground "lightgray"))))
  '(whitespace-tab ((t (:foreground "lightgray")))))
 (custom-set-variables
@@ -659,4 +959,5 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(auth-source-save-behavior nil))
+ '(auth-source-save-behavior nil)
+ '(calendar-date-style 'iso))
