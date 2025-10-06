@@ -486,7 +486,7 @@
     (lsp-modeline-workspace-status-enable nil) ; Modeline displays "LSP" when lsp-mode is enabled
     (lsp-signature-doc-lines 1)                ; Don't raise the echo area. It's distracting
     (lsp-ui-doc-use-childframe t)              ; Show docs for symbol at point
-    (lsp-eldoc-render-all t)            ; This would be very useful if it would respect `lsp-signature-doc-lines', currently it's distracting
+    (lsp-eldoc-render-all nil)            ; This would be very useful if it would respect `lsp-signature-doc-lines', currently it's distracting
     ;; lens
     (lsp-lens-enable nil)                 ; Optional, I don't need it
     ;; semantic
@@ -501,11 +501,11 @@
     (lsp-ui-doc-show
      lsp-ui-doc-glance)
     :bind (:map lsp-mode-map
-                ("C-h C-d" . 'lsp-ui-doc-glance))
+                ("M-d" . 'lsp-ui-doc-glance))
     :after lsp-mode
     :config (setq lsp-ui-doc-enable t
-                  lsp-ui-doc-show-with-cursor nil      ; Don't show doc when cursor is over symbol - too distracting
-                  lsp-ui-doc-include-signature t       ; Show signature
+                  lsp-ui-doc-show-with-cursor nil
+                  lsp-ui-doc-include-signature t
                   lsp-ui-doc-position 'at-point)))
 
 (defun feature/markdown ()
@@ -613,17 +613,24 @@
   (setq-default cursor-type 'hbar)
   (setq modalka-cursor-type 'bar)
 
-  (setq-local my/region-stack '())
+  (setq-default my/region-stack '())
 
-  (defun my/push-region (beg end pos)
-    (interactive "rd")
-    (push (list pos (if (= beg pos) end beg)) my/region-stack))
+  (defun my/push-region (pos)
+    (interactive "d")
+    (if (region-active-p)
+        (let* ((rb (car (region-bounds)))
+               (beg (car rb))
+               (end (cdr rb)))
+          (push (list pos (if (= beg pos) end beg)) my/region-stack))
+      (push (list pos pos) my/region-stack)))
 
   (defun my/pop-region ()
     (interactive)
-    (pcase-let ((`(,pos ,mark) (pop my/region-stack)))
-      (push-mark mark t t)
-      (goto-char pos)))
+    (when my/region-stack
+      (pcase-let ((`(,pos ,mark) (pop my/region-stack)))
+        (deactivate-mark)
+        (push-mark mark t t)
+        (goto-char pos))))
 
   (defun my/enable-modalka-mode () (interactive) (modalka-mode))
   (defun my/disable-modalka-mode () (interactive) (modalka-mode -1))
@@ -721,10 +728,20 @@
     (beginning-of-line)
     (next-line arg))
 
-  (defun my/mark-line (current arg)
-    (interactive "d\np")
-    (my/mark-thing #'my/backward-line #'my/forward-line current arg))
+  (defun my/mark-line (pos)
+    (interactive "d")
+    (my/push-region pos)
+    (beginning-of-line)
+    (push-mark (point) nil t)
+    (end-of-line)
+    (forward-char))
 
+  (defun my/mark-inner-line (pos)
+    (interactive "d")
+    (my/push-region pos)
+    (back-to-indentation)
+    (push-mark (point) nil t)
+    (end-of-line))
 
   (defun my/forward-symbol (arg)
     (interactive "p")
@@ -744,10 +761,15 @@
             (goto-char correct-node-end))
         (forward-symbol arg))))
 
-  (defun my/change-line () (interactive) (my/disable-modalka-mode) (funcall (key-binding (kbd "C-k"))))
-  (defun my/change-point () (interactive) (my/disable-modalka-mode) (funcall (key-binding (kbd "C-d"))))
-  (defun my/change-point-backward () (interactive) (my/disable-modalka-mode) (funcall (key-binding (kbd "DEL"))))
-  (defun my/change-region (beg end) (interactive "r") (my/disable-modalka-mode) (funcall (key-binding (kbd "C-w"))))
+  (defun my/change-line () (interactive) (my/disable-modalka-mode) (call-interactively (key-binding (kbd "C-k"))))
+  (defun my/change-point () (interactive) (my/disable-modalka-mode) (call-interactively (key-binding (kbd "C-d"))))
+  (defun my/change-point-backward () (interactive) (my/disable-modalka-mode) (call-interactively (key-binding (kbd "DEL"))))
+
+  (defun my/change-region (beg end)
+    (interactive "r")
+    (my/disable-modalka-mode)
+    (when (region-active-p)
+      (call-interactively (key-binding (kbd "C-w")))))
 
   (defun my/isearch-done--around (f &rest args)
     (let ((to-mark isearch-other-end))
@@ -764,16 +786,26 @@
   (defun my/open-below ()
     (interactive)
     (my/disable-modalka-mode)
-    (funcall (key-binding (kbd "C-e")) 1)
+    (call-interactively (key-binding (kbd "C-e")))
     (newline 1)
     (funcall indent-line-function))
 
   (defun my/open-above ()
     (interactive)
     (my/disable-modalka-mode)
-    (funcall (key-binding (kbd "C-a")) 1)
+    (call-interactively (key-binding (kbd "C-a")))
     (open-line 1)
     (funcall indent-line-function))
+
+  (defun my/insert-beginning ()
+    (interactive)
+    (my/disable-modalka-mode)
+    (call-interactively (key-binding (kbd "M-m"))))
+
+  (defun my/insert-end ()
+    (interactive)
+    (my/disable-modalka-mode)
+    (call-interactively (key-binding (kbd "C-e"))))
 
   (defun my/push-mark-around (backward-function forward-function direction)
     (lambda (point arg)
@@ -802,15 +834,50 @@
     (isearch-repeat-backward arg)
     (push-mark isearch-other-end t))
 
+  (defun my/mark-around-sexp (pos)
+    (interactive "d")
+    (my/push-region pos)
+    (setq start nil)
+    (save-excursion
+      (puni-up-list 'backward)
+      (setq start (point)))
+    (push-mark start t t)
+    (puni-up-list))
+
+  (defun my/mark-inside-sexp (pos)
+    (interactive "d")
+    (my/push-region pos)
+    (puni-beginning-of-list-around-point)
+    (push-mark (point) t t)
+    (puni-end-of-list-around-point))
+
+  (defun my/join-line (&optional beg end)
+    (interactive
+     (progn (barf-if-buffer-read-only)
+            (and (use-region-p)
+                 (list (region-beginning) (region-end)))))
+    (join-line
+     (not (and beg end))
+     beg
+     (if (= 0 (current-column)) (1- end) end)))
+
   (require 'transient)
   (require 'puni)
 
-  (dolist (key '("1" "2" "3" "4" "5" "6" "7" "8" "9" "0" "-" "=" "!" "@" "#" "$" "%" "^" "&" "*" "(" ")" "-" "+" "<backspace>" "a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p" "q" "r" "s" "t" "u" "v" "w" "x" "y" "z" "A" "B" "C" "D" "E" "F" "G" "H" "I" "J" "K" "L" "M" "N" "O" "P" "Q" "R" "S" "T" "U" "V" "W" "X" "Y" "Z" "[" "]" "{" "}" "\\" "|" ";" ":" "'" "\"" "<return>" "," "<" "." ">" "/" "?"))
+  (dolist (key '("1" "2" "3" "4" "5" "6" "7" "8" "9" "0" "-" "=" "!" "@" "#" "$" "%" "^" "&" "*" "(" ")" "_" "+" "<backspace>" "<delete>" "a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p" "q" "r" "s" "t" "u" "v" "w" "x" "y" "z" "A" "B" "C" "D" "E" "F" "G" "H" "I" "J" "K" "L" "M" "N" "O" "P" "Q" "R" "S" "T" "U" "V" "W" "X" "Y" "Z" "[" "]" "{" "}" "\\" "|" ";" ":" "'" "\"" "<return>" "," "<" "." ">" "/" "?" "`" "~"))
     (define-key modalka-mode-map (kbd key) #'transient-noop))
 
   (global-set-key (kbd "<escape>") #'my/enable-modalka-mode)
 
-  (define-key modalka-mode-map (kbd "a") #'my/disable-modalka-mode)
+  (setq around-map (make-sparse-keymap))
+  (setq inside-map (make-sparse-keymap))
+  (define-key around-map (kbd "s") #'my/mark-around-sexp)
+  (define-key inside-map (kbd "s") #'my/mark-inside-sexp)
+  (define-key around-map (kbd "v") #'my/mark-line)
+  (define-key inside-map (kbd "v") #'my/mark-inner-line)
+
+  (define-key modalka-mode-map (kbd "a") around-map)
+  (define-key modalka-mode-map (kbd "A") #'my/insert-end)
   (define-key modalka-mode-map (kbd "b") (my/push-mark-around #'backward-word #'forward-word -1))
   (define-key modalka-mode-map (kbd "B") (my/push-mark-around #'my/backward-symbol #'my/forward-symbol -1))
   (define-key modalka-mode-map (kbd "c") #'my/change-region)
@@ -822,8 +889,10 @@
   (define-key modalka-mode-map (kbd "g") #'my/deactivate-mark)
   (modalka-define-kbd "h" "C-b")
   (modalka-define-kbd "H" "C-a")
-  (define-key modalka-mode-map (kbd "i") #'my/disable-modalka-mode)
+  (define-key modalka-mode-map (kbd "i") inside-map)
+  (define-key modalka-mode-map (kbd "I") #'my/insert-beginning)
   (modalka-define-kbd "j" "C-n")
+  (define-key modalka-mode-map (kbd "J") #'my/join-line)
   (modalka-define-kbd "k" "C-p")
   (modalka-define-kbd "l" "C-f")
   (modalka-define-kbd "L" "C-e")
@@ -833,15 +902,16 @@
   (define-key modalka-mode-map (kbd "o") #'my/open-below)
   (define-key modalka-mode-map (kbd "O") #'my/open-above)
   (modalka-define-kbd "p" "C-y")
-  (define-key modalka-mode-map (kbd "s") #'my/change-point)
-  (define-key modalka-mode-map (kbd "S") #'my/change-point-backward)
+  (define-key modalka-mode-map (kbd "s") #'my/mark-around-sexp)
+  (define-key modalka-mode-map (kbd "S") #'my/mark-inside-sexp)
   (modalka-define-kbd "u" "C-/")
   (modalka-define-kbd "U" "C-?")
   (define-key modalka-mode-map (kbd "v") #'my/mark-line)
+  (define-key modalka-mode-map (kbd "V") #'my/mark-inner-line)
   (define-key modalka-mode-map (kbd "w") #'my/mark-word)
-  (define-key modalka-mode-map (kbd "W") #'my/mark-symbol)
-  (modalka-define-kbd "X" "DEL")
-  (modalka-define-kbd "x" "C-d")
+  (define-key modalka-mode-map (kbd "W") #'puni-mark-sexp-at-point)
+  (modalka-define-kbd "x" "DEL")
+  (modalka-define-kbd "X" "C-d")
   (modalka-define-kbd "y" "M-w")
   (define-key modalka-mode-map (kbd "z") #'my/pop-region)
   (define-key modalka-mode-map (kbd "[") (my/push-mark-around #'puni-backward-sexp #'puni-forward-sexp -1))
@@ -863,6 +933,11 @@
   (define-key colon-map (kbd "w") #'save-buffer)
   (define-key colon-map (kbd "g") #'magit)
   (define-key colon-map (kbd "b") #'switch-to-buffer)
+  (define-key colon-map (kbd "v") #'split-window-right)
+  (define-key colon-map (kbd "-") #'split-window-below)
+  (define-key colon-map (kbd "0") #'delete-window)
+  (define-key colon-map (kbd "1") #'delete-other-windows)
+  (define-key colon-map (kbd "3") #'split-window-right)
 
   (modalka-define-kbd "C-o" "C-x o")
 
@@ -960,4 +1035,10 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(auth-source-save-behavior nil)
- '(calendar-date-style 'iso))
+ '(calendar-date-style 'iso)
+ '(custom-enabled-themes '(dichromacy))
+ '(custom-safe-themes
+   '("5283a0c77cc7640fc28493cfdf8957b11e1c72af846d96f5e5a6a37432264c34"
+     "95b0bc7b8687101335ebbf770828b641f2befdcf6d3c192243a251ce72ab1692"
+     default))
+ '(visible-mark-inhibit-trailing-overlay nil))
