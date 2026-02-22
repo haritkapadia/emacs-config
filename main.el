@@ -341,16 +341,15 @@
 
   (use-package corfu
     ;; Optional customizations
-    ;; :custom
-    ;; (corfu-cycle t)                ;; Enable cycling for `corfu-next/previous'
-    ;; (corfu-auto t)                 ;; Enable auto completion
-    ;; (corfu-separator ?\s)          ;; Orderless field separator
+    :custom
+    (corfu-separator ?\s)          ;; Orderless field separator
     ;; (corfu-quit-at-boundary nil)   ;; Never quit at completion boundary
     ;; (corfu-quit-no-match nil)      ;; Never quit, even if there is no match
     ;; (corfu-preview-current nil)    ;; Disable current candidate preview
     ;; (corfu-preselect 'prompt)      ;; Preselect the prompt
-    ;; (corfu-on-exact-match nil)     ;; Configure handling of exact matches
+    (corfu-on-exact-match 'show)     ;; Configure handling of exact matches
     ;; (corfu-scroll-margin 5)        ;; Use scroll margin
+    (global-corfu-minibuffer t)
 
     ;; Enable Corfu only for certain modes.
     ;; :hook ((prog-mode . corfu-mode)
@@ -358,12 +357,34 @@
     ;;        (eshell-mode . corfu-mode))
 
     :init
-    (global-corfu-mode))
+    (global-corfu-mode)
+
+    :config
+    (defun corfu-move-to-minibuffer ()
+      (interactive)
+      (pcase completion-in-region--data
+        (`(,beg ,end ,table ,pred ,extras)
+         (let ((completion-extra-properties extras)
+               completion-cycle-threshold completion-cycling)
+           (consult-completion-in-region beg end table pred)))))
+    (keymap-set corfu-map "M-m" #'corfu-move-to-minibuffer)
+    (add-to-list 'corfu-continue-commands #'corfu-move-to-minibuffer))
 
   (use-package consult
     :bind
     (("C-h m" . consult-mark)
-     ("C-h C-m" . consult-global-mark))))
+     ("C-h C-m" . consult-global-mark)))
+
+  (use-package dabbrev
+    ;; Swap M-/ and C-M-/
+    :bind (("M-/" . dabbrev-completion)
+           ("C-M-/" . dabbrev-expand))
+    :config
+    (add-to-list 'dabbrev-ignored-buffer-regexps "\\` ")
+    (add-to-list 'dabbrev-ignored-buffer-modes 'authinfo-mode)
+    (add-to-list 'dabbrev-ignored-buffer-modes 'doc-view-mode)
+    (add-to-list 'dabbrev-ignored-buffer-modes 'pdf-view-mode)
+    (add-to-list 'dabbrev-ignored-buffer-modes 'tags-table-mode)))
 
 (defun feature/avy ()
   (use-package avy
@@ -491,7 +512,14 @@
     (lsp-semantic-tokens-enable nil)      ; Related to highlighting, and we defer to treesitter
 
     :init
-    (setq lsp-use-plists t))
+    (setq lsp-use-plists t)
+
+    :config
+    (lsp-register-client
+     (make-lsp-client
+      :new-connection (lsp-stdio-connection '("elp" "server"))
+      :major-modes '(erlang-mode)
+      :server-id 'elp)))
 
   (use-package lsp-ui
     :ensure t
@@ -520,8 +548,28 @@
   (add-hook 'maxima-mode-hook #'puni-mode))
 
 (defun feature/lisp ()
+  (require 'depth-lisp-mode)
+  (use-package slime
+    :init
+    (setq inferior-lisp-program "sbcl")
+    :config
+    (require 'slime-autodoc)
+    (define-key slime-autodoc-mode-map (kbd "SPC") nil)
+    (define-key slime-mode-indirect-map (kbd "SPC") nil))
   (add-hook 'lisp-data-mode-hook #'my/indent-spaces-mode)
-  (add-hook 'lisp-data-mode-hook #'puni-mode))
+  (add-hook 'lisp-data-mode-hook #'puni-mode)
+  (add-hook 'lisp-data-mode-hook #'rainbow-delimiters-mode)
+  (defun my/highlight-nil-and-t ()
+    (font-lock-add-keywords
+     nil
+     '(("\\_<nil\\_>" . 'font-lock-number-face)
+       ("\\_<t\\_>"   . 'font-lock-number-face))
+     'append))
+  (add-hook 'emacs-lisp-mode-hook #'my/highlight-nil-and-t)
+  (add-hook 'lisp-mode-hook #'my/highlight-nil-and-t)
+  (straight-use-package 'highlight-numbers)
+  (add-hook 'emacs-lisp-mode-hook #'highlight-numbers-mode)
+  (add-hook 'lisp-mode-hook #'highlight-numbers-mode))
 
 (defun feature/c ()
   (defvaralias 'c-basic-offset 'tab-width)
@@ -537,7 +585,9 @@
 
 (defun feature/python ()
   (defvaralias 'python-indent-offset 'tab-width)
-  (add-hook 'python-mode-hook #'combobulate-mode))
+  (add-hook 'python-mode-hook #'combobulate-mode)
+  (straight-use-package 'lsp-pyright)
+  (setq lsp-pyright-langserver-command "basedpyright"))
 
 (defun feature/typescript ()
   (defvaralias 'typescript-mode-indent-offset 'tab-width)
@@ -574,7 +624,17 @@
   (straight-use-package 'svelte-mode))
 
 (defun feature/haskell ()
-  (straight-use-package 'haskell-mode))
+  (use-package haskell-mode
+    :bind
+    (:map haskell-indentation-mode-map
+          ("]" . nil)
+          ("}" . nil)
+          (")" . nil)
+          (";" . nil)
+          ("," . nil)))
+
+  (straight-use-package 'lsp-haskell)
+  (require 'lsp-haskell))
 
 (defun feature/idris2 ()
   (use-package idris2-mode
@@ -767,7 +827,9 @@
     (interactive)
     (my/disable-modalka-mode)
     (when (region-active-p)
-      (call-interactively (key-binding (kbd "C-w")))))
+      (let ((bounds (car (region-bounds))))
+        (when (/= (car bounds) (cdr bounds))
+          (call-interactively (key-binding (kbd "C-w")))))))
 
   (defun my/isearch-done--around (f &rest args)
     (let ((to-mark isearch-other-end))
@@ -854,10 +916,9 @@
      (progn (barf-if-buffer-read-only)
             (and (use-region-p)
                  (list (region-beginning) (region-end)))))
-    (join-line
-     (not (and beg end))
-     beg
-     (if (= 0 (current-column)) (1- end) end)))
+    (if (and beg end)
+        (join-line nil beg (if (= 0 (current-column)) (1- end) end))
+      (join-line t)))
 
   (require 'transient)
   (require 'puni)
@@ -947,6 +1008,70 @@
     (add-hook 'after-save-hook #'whitespace-cleanup nil t))
   (add-hook 'prog-mode-hook #'my/add-clean-file-hook))
 
+(defun feature/html ()
+  (add-hook 'html-mode-hook #'rainbow-delimiters-mode))
+
+(defun feature/jinja2 ()
+  (straight-use-package 'jinja2-mode))
+
+(defun feature/uv ()
+  (use-package uv-mode
+    :straight (uv-mode :type git :host github :repo "z80dev/uv-mode")
+    :hook (python-ts-mode-hook . uv-mode-auto-activate-hook)))
+
+(defun feature/force-delimiter-font-lock ()
+  (straight-use-package 'rainbow-delimiters))
+
+(defun feature/lean ()
+  (defun my/lean-input-method ()
+    (set-input-method "Lean"))
+
+  (use-package lean4-mode
+    :commands lean4-mode
+    :straight (lean4-mode :type git :host github
+                          :repo "leanprover-community/lean4-mode"
+                          :files ("*.el" "data"))
+    :hook (lean-mode-hook . my/lean-input-method)))
+
+(defun feature/screenshot-svg ()
+  (defun my/screenshot-svg ()
+    "Save a screenshot of the current frame as an SVG image.
+Saves to a temp file and puts the filename in the kill ring."
+    (interactive)
+    (let* ((filename (make-temp-file "Emacs" nil ".svg"))
+           (data (x-export-frames nil 'svg)))
+      (with-temp-file filename
+        (insert data))
+      (kill-new filename)
+      (message filename))))
+
+(defun feature/clojure ()
+  (straight-use-package 'clojure-mode))
+
+(defun feature/erlang ()
+  (use-package erlang
+    :config
+    (setq inferior-erlang-machine "rebar3")
+    (setq inferior-erlang-machine-options '("shell"))
+    (setq inferior-erlang-shell-type nil)
+
+    (defun my/erlang-set-project-root ()
+      "Set `default-directory` to the parent dir containing `rebar.config` or `rebar.config.script`, if found."
+      (when (derived-mode-p 'erlang-mode)
+        (let* ((start (or (buffer-file-name) default-directory))
+               (proj-root
+                (locate-dominating-file
+                 start
+                 (lambda (dir)
+                   (or (file-exists-p (expand-file-name "rebar.config" dir))
+                       (file-exists-p (expand-file-name "rebar.config.script" dir)))))))
+          (when proj-root
+            (setq-local default-directory proj-root)))))
+
+    (add-hook 'erlang-mode-hook #'my/erlang-set-project-root)))
+
+(defun feature/theme ())
+
 (load "~/.emacs.d/private.el")
 
 (defun main ()
@@ -967,7 +1092,9 @@
    #'feature/no-file-locks
    #'feature/recentf
    #'feature/project
-   #'feature/clean-file-on-save)
+   #'feature/clean-file-on-save
+   #'feature/screenshot-svg
+   #'feature/theme)
 
   (load-features
    #'feature/diminish
@@ -987,7 +1114,7 @@
    #'feature/terminal-here
    #'feature/stupid-indent-mode
    #'feature/lsp
-   #'feature/mu4e)
+   #'feature/force-delimiter-font-lock)
 
   (load-features
    #'feature/modalka
@@ -1009,4 +1136,8 @@
    #'feature/scala
    #'feature/json
    #'feature/terraform
-   #'feature/rust))
+   #'feature/rust
+   #'feature/html
+   #'feature/jinja2
+   #'feature/uv
+   #'feature/erlang))
